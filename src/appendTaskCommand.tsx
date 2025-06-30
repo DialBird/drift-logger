@@ -108,7 +108,7 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
           actions={
             <ActionPanel>
               <Action.Open
-                title="Append Task"
+                title="Log-drift"
                 target={getObsidianTarget({
                   type: ObsidianTargetType.AppendTask,
                   path: notePath,
