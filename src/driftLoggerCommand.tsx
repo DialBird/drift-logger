@@ -13,17 +13,20 @@ import { applyTemplates } from "./api/templating/templating.service";
 
 interface appendTaskArgs {
   text: string;
-  dueDate: string;
+  minutes: string;
 }
 
-export default function AppendTask(props: { arguments: appendTaskArgs }) {
+export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   const { vaults, ready } = useObsidianVaults();
   const { text } = props.arguments;
-  const { dueDate } = props.arguments;
-  const dateContent = dueDate ? " 📅 " + dueDate : "";
+  const { minutes } = props.arguments;
 
-  const { appendTemplate, heading, notePath, noteTag, vaultName, silent, creationDate } =
-    getPreferenceValues<appendTaskPreferences>();
+  // 現在時刻から指定された分数を引いて開始時刻を計算
+  const now = new Date();
+  const startTime = new Date(now.getTime() - parseInt(minutes) * 60 * 1000);
+  const startTimeString = startTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+
+  const { appendTemplate, heading, notePath, vaultName, silent } = getPreferenceValues<appendTaskPreferences>();
   const [vaultsWithPlugin, vaultsWithoutPlugin] = vaultPluginCheck(vaults, "obsidian-advanced-uri");
   const [content, setContent] = useState<string | null>(null);
 
@@ -64,11 +67,6 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
     return <NoPathProvided />;
   }
 
-  const tag = noteTag ? noteTag + " " : "";
-
-  // en-CA uses the same format as the iso string without the time ex: 2025-09-25
-  const creationDateString = creationDate ? " ➕ " + new Date().toLocaleDateString("en-CA") : "";
-
   const selectedVault = vaultName && vaults.find((vault) => vault.name === vaultName);
   // If there's a configured vault or only one vault, use that
   if (selectedVault || vaultsWithPlugin.length === 1) {
@@ -79,7 +77,7 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
         type: ObsidianTargetType.AppendTask,
         path: notePathExpanded,
         vault: vaultToUse,
-        text: "- [ ] " + tag + content + dateContent + creationDateString,
+        text: "- " + startTimeString + "~: " + content + " (" + minutes + "min)",
         heading: heading,
         silent: silent,
       });
@@ -108,12 +106,12 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
           actions={
             <ActionPanel>
               <Action.Open
-                title="Log-drift"
+                title="Drift Logger"
                 target={getObsidianTarget({
                   type: ObsidianTargetType.AppendTask,
                   path: notePath,
                   vault: vault,
-                  text: "- [ ] #task " + content + dateContent + creationDateString,
+                  text: "- " + startTimeString + "~: " + content + " (" + minutes + "min)",
                   heading: heading,
                 })}
               />

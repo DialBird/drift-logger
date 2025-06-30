@@ -37,44 +37,14 @@
       "required": false,
       "default": ".obsidian",
       "description": "Override the vault config filename (default: .obsidian)"
-    },
-    {
-      "name": "excludedFolders",
-      "type": "textfield",
-      "placeholder": "folder1, folder2, ...",
-      "title": "Exclude following folders",
-      "required": false,
-      "description": "Specify which folders to exclude (comma separated)"
-    },
-    {
-      "name": "removeYAML",
-      "title": "Remove content",
-      "label": "Hide YAML frontmatter",
-      "type": "checkbox",
-      "required": false,
-      "description": "Hide YAML frontmatter for copying and viewing notes"
-    },
-    {
-      "name": "removeLatex",
-      "label": "Hide LaTeX",
-      "type": "checkbox",
-      "required": false,
-      "description": "Hide LaTeX (surrounded by $$ or $) for copying and viewing notes"
-    },
-    {
-      "name": "removeLinks",
-      "label": "Hide Links",
-      "type": "checkbox",
-      "required": false,
-      "description": "Hide links for copying and viewing notes"
     }
   ],
   "commands": [
     {
-      "name": "appendTaskCommand",
-      "title": "Append Task",
+      "name": "driftLoggerCommand",
+      "title": "Drift Logger",
       "subtitle": "Obsidian for Dialbird",
-      "description": "Append a task to a note of your choice",
+      "description": "Log a task to a note of your choice",
       "mode": "view",
       "arguments": [
         {
@@ -84,10 +54,10 @@
           "required": true
         },
         {
-          "name": "dueDate",
-          "placeholder": "YYYY-MM-DD",
+          "name": "minutes",
+          "placeholder": "30",
           "type": "text",
-          "required": false
+          "required": true
         }
       ],
       "preferences": [
@@ -97,23 +67,6 @@
           "required": true,
           "title": "Path of the note you wish to append the task to",
           "type": "textfield"
-        },
-        {
-          "name": "noteTag",
-          "required": false,
-          "title": "Tag to append to the beginning of the task.",
-          "description": "Defaults to #task for compatibility with Obsidian Tasks.",
-          "type": "textfield",
-          "default": "#task"
-        },
-        {
-          "name": "creationDate",
-          "type": "checkbox",
-          "title": "Creation Date",
-          "label": "Append creation date to the task",
-          "required": false,
-          "description": "➕ YYYY-MM-DD (Current date)",
-          "default": false
         },
         {
           "description": "Name of Obsidian vault where note is",
