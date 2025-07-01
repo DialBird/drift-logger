@@ -92,3 +92,25 @@ export function getNotesFromCache(vault: Vault) {
 export function clearCache() {
   cache.clear();
 }
+
+/**
+ * Save the end time of the last drift log entry.
+ *
+ * @param endTime - The end time to save
+ */
+export function saveDriftLoggerEndTime(endTime: Date) {
+  cache.set("drift_logger_last_end_time", JSON.stringify({ endTime: endTime.getTime() }));
+}
+
+/**
+ * Get the end time of the last drift log entry.
+ *
+ * @returns The last end time, or null if not found
+ */
+export function getLastDriftLoggerEndTime(): Date | null {
+  if (cache.has("drift_logger_last_end_time")) {
+    const data = JSON.parse(cache.get("drift_logger_last_end_time") ?? "{}");
+    return data.endTime ? new Date(data.endTime) : null;
+  }
+  return null;
+}

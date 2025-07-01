@@ -57,7 +57,7 @@
           "name": "minutes",
           "placeholder": "30",
           "type": "text",
-          "required": true
+          "required": false
         }
       ],
       "preferences": [

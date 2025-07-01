@@ -8,22 +8,43 @@ import { appendTaskPreferences } from "./utils/preferences";
 import { getObsidianTarget, ObsidianTargetType } from "./utils/utils";
 import { useObsidianVaults } from "./utils/hooks";
 import { vaultPluginCheck } from "./api/vault/plugins/plugins.service";
-import { clearCache } from "./api/cache/cache.service";
+import { clearCache, saveDriftLoggerEndTime, getLastDriftLoggerEndTime } from "./api/cache/cache.service";
 import { applyTemplates } from "./api/templating/templating.service";
 
 interface appendTaskArgs {
   text: string;
-  minutes: string;
+  minutes?: string;
 }
 
 export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   const { vaults, ready } = useObsidianVaults();
-  const { text } = props.arguments;
-  const { minutes } = props.arguments;
+  const { text, minutes } = props.arguments;
 
-  // 現在時刻から指定された分数を引いて開始時刻を計算
+  // 現在時刻
   const now = new Date();
-  const startTime = new Date(now.getTime() - parseInt(minutes) * 60 * 1000);
+
+  // 開始時刻と分数の計算
+  let startTime: Date;
+  let calculatedMinutes: string;
+
+  if (minutes) {
+    // モード1: 分数が指定されている場合（現在の動作）
+    startTime = new Date(now.getTime() - parseInt(minutes) * 60 * 1000);
+    calculatedMinutes = minutes;
+  } else {
+    // モード2: 分数が指定されていない場合（前回の終了時刻から継続）
+    const lastEndTime = getLastDriftLoggerEndTime();
+    if (lastEndTime) {
+      startTime = lastEndTime;
+      const diffMs = now.getTime() - lastEndTime.getTime();
+      calculatedMinutes = Math.floor(diffMs / (1000 * 60)).toString();
+    } else {
+      // 初回実行時はデフォルトで15分前から
+      startTime = new Date(now.getTime() - 15 * 60 * 1000);
+      calculatedMinutes = "15";
+    }
+  }
+
   const startTimeString = startTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
   const endTimeString = now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 
@@ -83,12 +104,14 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
         type: ObsidianTargetType.AppendTask,
         path: notePathExpanded,
         vault: vaultToUse,
-        text: formatDriftLogEntry(startTimeString, endTimeString, content, minutes),
+        text: formatDriftLogEntry(startTimeString, endTimeString, content, calculatedMinutes),
         heading: heading,
         silent: silent,
       });
       open(target);
       clearCache();
+      // 現在時刻を次回の開始時刻として保存（clearCacheの後で実行）
+      saveDriftLoggerEndTime(now);
       popToRoot();
       closeMainWindow();
     };
@@ -117,7 +140,7 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
                   type: ObsidianTargetType.AppendTask,
                   path: notePath,
                   vault: vault,
-                  text: formatDriftLogEntry(startTimeString, endTimeString, content, minutes),
+                  text: formatDriftLogEntry(startTimeString, endTimeString, content, calculatedMinutes),
                   heading: heading,
                 })}
               />
