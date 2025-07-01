@@ -55,7 +55,13 @@
         },
         {
           "name": "minutes",
-          "placeholder": "30",
+          "placeholder": "min",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "startTime",
+          "placeholder": "HHmm",
           "type": "text",
           "required": false
         }

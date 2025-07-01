@@ -14,11 +14,38 @@ import { applyTemplates } from "./api/templating/templating.service";
 interface appendTaskArgs {
   text: string;
   minutes?: string;
+  startTime?: string;
 }
 
 export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   const { vaults, ready } = useObsidianVaults();
-  const { text, minutes } = props.arguments;
+  const { text, minutes, startTime: customStartTime } = props.arguments;
+
+  // 時刻パース関数 (HH:mm または HHmm フォーマット)
+  const parseTimeString = (timeStr: string): Date => {
+    let hours: number, minutes: number;
+
+    if (timeStr.includes(":")) {
+      // HH:mm フォーマット (例: "14:30")
+      [hours, minutes] = timeStr.split(":").map(Number);
+    } else {
+      // HHmm フォーマット (例: "1430")
+      if (timeStr.length === 4) {
+        hours = parseInt(timeStr.substring(0, 2));
+        minutes = parseInt(timeStr.substring(2, 4));
+      } else if (timeStr.length === 3) {
+        // Hmm フォーマット (例: "930" -> 9:30)
+        hours = parseInt(timeStr.substring(0, 1));
+        minutes = parseInt(timeStr.substring(1, 3));
+      } else {
+        throw new Error("Invalid time format. Use HH:mm or HHmm");
+      }
+    }
+
+    const today = new Date();
+    today.setHours(hours, minutes, 0, 0);
+    return today;
+  };
 
   // 現在時刻
   const now = new Date();
@@ -27,8 +54,12 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   let startTime: Date;
   let calculatedMinutes: string;
 
-  if (minutes) {
-    // モード1: 分数が指定されている場合（現在の動作）
+  if (customStartTime && minutes) {
+    // モード3: 開始時刻と分数が両方指定されている場合
+    startTime = parseTimeString(customStartTime);
+    calculatedMinutes = minutes;
+  } else if (minutes) {
+    // モード1: 分数のみ指定されている場合（現在の動作）
     startTime = new Date(now.getTime() - parseInt(minutes) * 60 * 1000);
     calculatedMinutes = minutes;
   } else {
@@ -45,8 +76,11 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
     }
   }
 
+  // 終了時刻の計算（三番目の引数が指定されている場合は開始時刻 + 分数）
+  const endTime = customStartTime && minutes ? new Date(startTime.getTime() + parseInt(minutes) * 60 * 1000) : now;
+
   const startTimeString = startTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
-  const endTimeString = now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  const endTimeString = endTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 
   // ドリフトログ用のフォーマット関数
   const formatDriftLogEntry = (startTime: string, endTime: string, content: string, minutes: string): string => {
@@ -110,8 +144,8 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
       });
       open(target);
       clearCache();
-      // 現在時刻を次回の開始時刻として保存（clearCacheの後で実行）
-      saveDriftLoggerEndTime(now);
+      // 終了時刻を次回の開始時刻として保存（clearCacheの後で実行）
+      saveDriftLoggerEndTime(endTime);
       popToRoot();
       closeMainWindow();
     };

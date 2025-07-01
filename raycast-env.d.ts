@@ -36,8 +36,10 @@ declare namespace Arguments {
   export type DriftLoggerCommand = {
   /** Your task */
   "text": string,
-  /** 30 */
-  "minutes": string
+  /** min */
+  "minutes": string,
+  /** HHmm */
+  "startTime": string
 }
 }
 
