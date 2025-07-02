@@ -1,139 +1,148 @@
-import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, open, popToRoot } from "@raycast/api";
-import { useEffect, useState } from "react";
-import AdvancedURIPluginNotInstalled from "./components/Notifications/AdvancedURIPluginNotInstalled";
-import { NoPathProvided } from "./components/Notifications/NoPathProvided";
-import { NoVaultFoundMessage } from "./components/Notifications/NoVaultFoundMessage";
-import { vaultsWithoutAdvancedURIToast } from "./components/Toasts";
-import { appendTaskPreferences } from "./utils/preferences";
-import { getObsidianTarget, ObsidianTargetType } from "./utils/utils";
-import { useObsidianVaults } from "./utils/hooks";
-import { vaultPluginCheck } from "./api/vault/plugins/plugins.service";
-import { clearCache, saveDriftLoggerEndTime, getLastDriftLoggerEndTime } from "./api/cache/cache.service";
-import { applyTemplates } from "./api/templating/templating.service";
+import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, open, popToRoot } from '@raycast/api'
+import { useEffect, useState } from 'react'
+import { clearCache, getLastDriftLoggerEndTime, saveDriftLoggerEndTime } from './api/cache/cache.service'
+import { applyTemplates } from './api/templating/templating.service'
+import { vaultPluginCheck } from './api/vault/plugins/plugins.service'
+import AdvancedURIPluginNotInstalled from './components/Notifications/AdvancedURIPluginNotInstalled'
+import { NoPathProvided } from './components/Notifications/NoPathProvided'
+import { NoVaultFoundMessage } from './components/Notifications/NoVaultFoundMessage'
+import { vaultsWithoutAdvancedURIToast } from './components/Toasts'
+import { useObsidianVaults } from './utils/hooks'
+import type { appendTaskPreferences } from './utils/preferences'
+import { getObsidianTarget, ObsidianTargetType } from './utils/utils'
 
 interface appendTaskArgs {
-  text: string;
-  minutes?: string;
-  startTime?: string;
+  text: string
+  minutes?: string
+  startTime?: string
 }
 
 export default function DriftLogger(props: { arguments: appendTaskArgs }) {
-  const { vaults, ready } = useObsidianVaults();
-  const { text, minutes, startTime: customStartTime } = props.arguments;
+  const { vaults, ready } = useObsidianVaults()
+  const { text, minutes, startTime: customStartTime } = props.arguments
+
+  // 特殊コマンド「pin」の処理
+  if (text === 'pin') {
+    const currentTime = new Date()
+    saveDriftLoggerEndTime(currentTime)
+    popToRoot()
+    closeMainWindow()
+    return <List isLoading={false} />
+  }
 
   // 時刻パース関数 (HH:mm または HHmm フォーマット)
   const parseTimeString = (timeStr: string): Date => {
-    let hours: number, minutes: number;
+    let hours: number, minutes: number
 
-    if (timeStr.includes(":")) {
+    if (timeStr.includes(':')) {
       // HH:mm フォーマット (例: "14:30")
-      [hours, minutes] = timeStr.split(":").map(Number);
+      ;[hours, minutes] = timeStr.split(':').map(Number)
     } else {
       // HHmm フォーマット (例: "1430")
       if (timeStr.length === 4) {
-        hours = parseInt(timeStr.substring(0, 2));
-        minutes = parseInt(timeStr.substring(2, 4));
+        hours = parseInt(timeStr.substring(0, 2))
+        minutes = parseInt(timeStr.substring(2, 4))
       } else if (timeStr.length === 3) {
         // Hmm フォーマット (例: "930" -> 9:30)
-        hours = parseInt(timeStr.substring(0, 1));
-        minutes = parseInt(timeStr.substring(1, 3));
+        hours = parseInt(timeStr.substring(0, 1))
+        minutes = parseInt(timeStr.substring(1, 3))
       } else {
-        throw new Error("Invalid time format. Use HH:mm or HHmm");
+        throw new Error('Invalid time format. Use HH:mm or HHmm')
       }
     }
 
-    const today = new Date();
-    today.setHours(hours, minutes, 0, 0);
-    return today;
-  };
+    const today = new Date()
+    today.setHours(hours, minutes, 0, 0)
+    return today
+  }
 
   // 現在時刻
-  const now = new Date();
+  const now = new Date()
 
   // 開始時刻と分数の計算
-  let startTime: Date;
-  let calculatedMinutes: string;
+  let startTime: Date
+  let calculatedMinutes: string
 
   if (customStartTime && minutes) {
     // モード3: 開始時刻と分数が両方指定されている場合
-    startTime = parseTimeString(customStartTime);
-    calculatedMinutes = minutes;
+    startTime = parseTimeString(customStartTime)
+    calculatedMinutes = minutes
   } else if (minutes) {
     // モード1: 分数のみ指定されている場合（現在の動作）
-    startTime = new Date(now.getTime() - parseInt(minutes) * 60 * 1000);
-    calculatedMinutes = minutes;
+    startTime = new Date(now.getTime() - parseInt(minutes) * 60 * 1000)
+    calculatedMinutes = minutes
   } else {
     // モード2: 分数が指定されていない場合（前回の終了時刻から継続）
-    const lastEndTime = getLastDriftLoggerEndTime();
+    const lastEndTime = getLastDriftLoggerEndTime()
     if (lastEndTime) {
-      startTime = lastEndTime;
-      const diffMs = now.getTime() - lastEndTime.getTime();
-      calculatedMinutes = Math.floor(diffMs / (1000 * 60)).toString();
+      startTime = lastEndTime
+      const diffMs = now.getTime() - lastEndTime.getTime()
+      calculatedMinutes = Math.floor(diffMs / (1000 * 60)).toString()
     } else {
       // 初回実行時はデフォルトで15分前から
-      startTime = new Date(now.getTime() - 15 * 60 * 1000);
-      calculatedMinutes = "15";
+      startTime = new Date(now.getTime() - 15 * 60 * 1000)
+      calculatedMinutes = '15'
     }
   }
 
   // 終了時刻の計算（三番目の引数が指定されている場合は開始時刻 + 分数）
-  const endTime = customStartTime && minutes ? new Date(startTime.getTime() + parseInt(minutes) * 60 * 1000) : now;
+  const endTime = customStartTime && minutes ? new Date(startTime.getTime() + parseInt(minutes) * 60 * 1000) : now
 
-  const startTimeString = startTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
-  const endTimeString = endTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  const startTimeString = startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+  const endTimeString = endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
 
   // ドリフトログ用のフォーマット関数
   const formatDriftLogEntry = (startTime: string, endTime: string, content: string, minutes: string): string => {
-    return `- ${startTime}~${endTime} (${minutes}min): ${content}`;
-  };
+    return `- ${startTime}~${endTime} (${minutes}min): ${content}`
+  }
 
-  const { appendTemplate, heading, notePath, vaultName, silent } = getPreferenceValues<appendTaskPreferences>();
-  const [vaultsWithPlugin, vaultsWithoutPlugin] = vaultPluginCheck(vaults, "obsidian-advanced-uri");
-  const [content, setContent] = useState<string | null>(null);
+  const { appendTemplate, heading, notePath, vaultName, silent } = getPreferenceValues<appendTaskPreferences>()
+  const [vaultsWithPlugin, vaultsWithoutPlugin] = vaultPluginCheck(vaults, 'obsidian-advanced-uri')
+  const [content, setContent] = useState<string | null>(null)
 
   useEffect(() => {
     async function getContent() {
-      const content = await applyTemplates(text, appendTemplate);
-      setContent(content);
+      const content = await applyTemplates(text, appendTemplate)
+      setContent(content)
     }
 
-    getContent();
-  }, [appendTemplate, text]);
+    getContent()
+  }, [appendTemplate, text])
 
   if (!ready || content === null) {
-    return <List isLoading={true} />;
+    return <List isLoading={true} />
   }
 
   if (vaults.length === 0) {
-    return <NoVaultFoundMessage />;
+    return <NoVaultFoundMessage />
   }
 
   if (vaultsWithoutPlugin.length > 0) {
-    vaultsWithoutAdvancedURIToast(vaultsWithoutPlugin);
+    vaultsWithoutAdvancedURIToast(vaultsWithoutPlugin)
   }
 
   if (vaultsWithPlugin.length === 0) {
-    return <AdvancedURIPluginNotInstalled />;
+    return <AdvancedURIPluginNotInstalled />
   }
 
   if (vaultName) {
     // Fail if selected vault doesn't have plugin
     if (!vaultsWithPlugin.some((v) => v.name === vaultName)) {
-      return <AdvancedURIPluginNotInstalled vaultName={vaultName} />;
+      return <AdvancedURIPluginNotInstalled vaultName={vaultName} />
     }
   }
 
   if (!notePath) {
     // Fail if selected vault doesn't have plugin
-    return <NoPathProvided />;
+    return <NoPathProvided />
   }
 
-  const selectedVault = vaultName && vaults.find((vault) => vault.name === vaultName);
+  const selectedVault = vaultName && vaults.find((vault) => vault.name === vaultName)
   // If there's a configured vault or only one vault, use that
   if (selectedVault || vaultsWithPlugin.length === 1) {
-    const vaultToUse = selectedVault || vaultsWithPlugin[0];
+    const vaultToUse = selectedVault || vaultsWithPlugin[0]
     const openObsidian = async () => {
-      const notePathExpanded = await applyTemplates(notePath);
+      const notePathExpanded = await applyTemplates(notePath)
       const target = getObsidianTarget({
         type: ObsidianTargetType.AppendTask,
         path: notePathExpanded,
@@ -141,22 +150,22 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
         text: formatDriftLogEntry(startTimeString, endTimeString, content, calculatedMinutes),
         heading: heading,
         silent: silent,
-      });
-      open(target);
-      clearCache();
+      })
+      open(target)
+      clearCache()
       // 終了時刻を次回の開始時刻として保存（clearCacheの後で実行）
-      saveDriftLoggerEndTime(endTime);
-      popToRoot();
-      closeMainWindow();
-    };
+      saveDriftLoggerEndTime(endTime)
+      popToRoot()
+      closeMainWindow()
+    }
 
     // Render a loading state while the user selects a vault
     if (vaults.length > 1 && !selectedVault) {
-      return <List isLoading={true} />;
+      return <List isLoading={true} />
     }
 
     // Call the function to open Obsidian when ready
-    openObsidian();
+    openObsidian()
   }
 
   // Otherwise, let the user select a vault
@@ -183,5 +192,5 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
         />
       ))}
     </List>
-  );
+  )
 }
