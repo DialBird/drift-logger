@@ -68,10 +68,10 @@
       ],
       "preferences": [
         {
-          "description": "Path of note",
+          "description": "Path of note(format with date-fns)",
           "name": "notePath",
           "required": true,
-          "title": "Path of the note you wish to append the task to",
+          "title": "Path of the note (format with date-fns)",
           "type": "textfield"
         },
         {
@@ -103,6 +103,7 @@
   "dependencies": {
     "@raycast/api": "^1.94.0",
     "@types/uuid": "^8.3.4",
+    "date-fns": "^4.1.0",
     "fuse.js": "^7.0.0",
     "luxon": "^3.4.4",
     "uuid": "^8.3.2",

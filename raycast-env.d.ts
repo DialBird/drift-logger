@@ -20,7 +20,7 @@ declare type Preferences = ExtensionPreferences
 declare namespace Preferences {
   /** Preferences accessible in the `driftLoggerCommand` command */
   export type DriftLoggerCommand = ExtensionPreferences & {
-  /** Path of the note you wish to append the task to - Path of note */
+  /** Path of the note (format with date-fns) - Path of note(format with date-fns) */
   "notePath": string,
   /** Name of Obsidian vault where note is - Name of Obsidian vault where note is */
   "vaultName"?: string,
