@@ -1,6 +1,6 @@
 import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, open, popToRoot } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { clearCache, getLastDriftLoggerEndTime, saveDriftLoggerEndTime } from "./api/cache/cache.service";
 import { applyTemplates } from "./api/templating/templating.service";
 import { vaultPluginCheck } from "./api/vault/plugins/plugins.service";
@@ -31,30 +31,17 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
     return <List isLoading={false} />;
   }
 
-  // 時刻パース関数 (HH:mm または HHmm フォーマット)
+  // 時刻パース関数 (date-fnsを使用)
   const parseTimeString = (timeStr: string): Date => {
-    let hours: number, minutes: number;
+    const today = new Date();
 
     if (timeStr.includes(":")) {
       // HH:mm フォーマット (例: "14:30")
-      [hours, minutes] = timeStr.split(":").map(Number);
+      return parse(timeStr, "HH:mm", today);
     } else {
       // HHmm フォーマット (例: "1430")
-      if (timeStr.length === 4) {
-        hours = parseInt(timeStr.substring(0, 2));
-        minutes = parseInt(timeStr.substring(2, 4));
-      } else if (timeStr.length === 3) {
-        // Hmm フォーマット (例: "930" -> 9:30)
-        hours = parseInt(timeStr.substring(0, 1));
-        minutes = parseInt(timeStr.substring(1, 3));
-      } else {
-        throw new Error("Invalid time format. Use HH:mm or HHmm");
-      }
+      return parse(timeStr, "HHmm", today);
     }
-
-    const today = new Date();
-    today.setHours(hours, minutes, 0, 0);
-    return today;
   };
 
   // 現在時刻
@@ -100,7 +87,6 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
     const today = new Date();
 
     // date-fnsのformatを使用してテンプレート置換処理
-    console.log('note!!!!!!!',notePath);
     const dailyPath = format(today, notePath);
 
     return dailyPath;
