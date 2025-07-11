@@ -18,31 +18,38 @@ interface appendTaskArgs {
   startTime?: string;
 }
 
+// 時刻パース関数 (date-fnsを使用)
+const parseTimeString = (timeStr: string): Date => {
+  const today = new Date();
+
+  if (timeStr.includes(":")) {
+    // HH:mm フォーマット (例: "14:30")
+    return parse(timeStr, "HH:mm", today);
+  } else {
+    // HHmm フォーマット (例: "1430")
+    return parse(timeStr, "HHmm", today);
+  }
+};
+
 export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   const { vaults, ready } = useObsidianVaults();
   const { text, minutes, startTime: customStartTime } = props.arguments;
 
   // 特殊コマンド「pin」の処理
   if (text === "pin") {
-    const currentTime = new Date();
-    saveDriftLoggerEndTime(currentTime);
+    let timeToSave: Date;
+
+    if (customStartTime) {
+      timeToSave = parseTimeString(customStartTime);
+    } else {
+      timeToSave = new Date();
+    }
+
+    saveDriftLoggerEndTime(timeToSave);
     popToRoot();
     closeMainWindow();
     return <List isLoading={false} />;
   }
-
-  // 時刻パース関数 (date-fnsを使用)
-  const parseTimeString = (timeStr: string): Date => {
-    const today = new Date();
-
-    if (timeStr.includes(":")) {
-      // HH:mm フォーマット (例: "14:30")
-      return parse(timeStr, "HH:mm", today);
-    } else {
-      // HHmm フォーマット (例: "1430")
-      return parse(timeStr, "HHmm", today);
-    }
-  };
 
   // 現在時刻
   const now = new Date();
