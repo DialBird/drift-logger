@@ -54,14 +54,14 @@
           "required": true
         },
         {
-          "name": "minutes",
-          "placeholder": "min",
+          "name": "startTime",
+          "placeholder": "HHmm",
           "type": "text",
           "required": false
         },
         {
-          "name": "startTime",
-          "placeholder": "HHmm",
+          "name": "minutes",
+          "placeholder": "min",
           "type": "text",
           "required": false
         }
