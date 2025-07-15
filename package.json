@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "obsidian-for-dialbird",
-  "title": "Obsidian for Dialbird",
-  "description": "Control Obsidian with Raycast",
+  "name": "drift-logger",
+  "title": "Drift Logger",
+  "description": "Log tasks to Drift",
   "icon": "extension_icon.png",
   "author": "marcjulian",
   "categories": [
@@ -43,7 +43,7 @@
     {
       "name": "driftLoggerCommand",
       "title": "Drift Logger",
-      "subtitle": "Obsidian for Dialbird",
+      "subtitle": "Drift Logger",
       "description": "Log a task to a note of your choice",
       "mode": "view",
       "arguments": [
