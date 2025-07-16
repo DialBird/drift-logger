@@ -8,10 +8,8 @@ import {
   getTaskGroups,
   getSelectedTaskGroup,
   saveSelectedTaskGroupId,
-  addTaskGroup,
   type TaskGroup,
 } from "./api/cache/cache.service";
-import { v4 as uuidv4 } from "uuid";
 import { applyTemplates } from "./api/templating/templating.service";
 import { vaultPluginCheck } from "./api/vault/plugins/plugins.service";
 import AdvancedURIPluginNotInstalled from "./components/Notifications/AdvancedURIPluginNotInstalled";
@@ -45,7 +43,7 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   const { text, minutes, startTime: customStartTime } = props.arguments;
 
   // タスクグループ関連のstate
-  const [taskGroups, setTaskGroups] = useState<TaskGroup[]>(getTaskGroups());
+  const [taskGroups] = useState<TaskGroup[]>(getTaskGroups());
   const [selectedTaskGroup] = useState<TaskGroup | null>(getSelectedTaskGroup());
 
   // 特殊コマンド「pin」の処理
@@ -253,43 +251,29 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
     closeMainWindow();
   };
 
+  // タスクグループが存在しない場合は、タスクグループなしで実行
+  if (taskGroups.length === 0) {
+    executeWithTaskGroup(null);
+    return <List isLoading={false} />;
+  }
+
+  // タスクグループを並び替え：最後に選択したものを先頭に配置
+  const sortedTaskGroups = [...taskGroups];
+  if (selectedTaskGroup && taskGroups.find(tg => tg.id === selectedTaskGroup.id)) {
+    // 最後に選択したタスクグループを配列から除去
+    const filteredGroups = sortedTaskGroups.filter(tg => tg.id !== selectedTaskGroup.id);
+    // 先頭に配置
+    sortedTaskGroups.splice(0, sortedTaskGroups.length, selectedTaskGroup, ...filteredGroups);
+  }
+
   return (
     <List isLoading={false}>
       <List.Section title="タスクグループを選択">
-        <List.Item
-          key="default"
-          title="デフォルト（タスクグループなし）"
-          actions={
-            <ActionPanel>
-              <Action title="Drift Logger" onAction={() => executeWithTaskGroup(null)} />
-            </ActionPanel>
-          }
-        />
-        <List.Item
-          key="create_new"
-          title={`新しいタスクグループ「${text}」を作成`}
-          actions={
-            <ActionPanel>
-              <Action
-                title="作成して実行"
-                onAction={() => {
-                  const newTaskGroup: TaskGroup = {
-                    id: uuidv4(),
-                    name: text,
-                  };
-                  addTaskGroup(newTaskGroup);
-                  setTaskGroups(getTaskGroups());
-                  executeWithTaskGroup(newTaskGroup); // 新規作成したタスクグループで実行
-                }}
-              />
-            </ActionPanel>
-          }
-        />
-        {taskGroups.map((taskGroup) => (
+        {sortedTaskGroups.map((taskGroup, index) => (
           <List.Item
             key={taskGroup.id}
             title={taskGroup.name}
-            accessories={[...(selectedTaskGroup?.id === taskGroup.id ? [{ icon: "✓", tooltip: "選択中" }] : [])]}
+            accessories={[...(index === 0 ? [{ icon: "✓", tooltip: "前回選択" }] : [])]}
             actions={
               <ActionPanel>
                 <Action title="Drift Logger" onAction={() => executeWithTaskGroup(taskGroup)} />
