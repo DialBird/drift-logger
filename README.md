@@ -28,3 +28,11 @@ A simple Raycast extension for time drift logging - recording when you started w
 
 - Raycast installed on macOS
 - Access to daily notes (the extension handles file creation automatically)
+
+## Credits
+
+This extension is based on the original Obsidian Drift plugin and adapted for Raycast.
+
+## Acknowledgments
+
+This project was originally forked from an Obsidian plugin and has been adapted to work as a Raycast extension for time drift logging.

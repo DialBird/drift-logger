@@ -4,7 +4,7 @@
   "title": "Drift Logger",
   "description": "Log tasks to Drift",
   "icon": "extension_icon.png",
-  "author": "marcjulian",
+  "author": "dialbird",
   "categories": [
     "Productivity"
   ],
@@ -16,8 +16,7 @@
     "adamadamsmusic",
     "fservais",
     "psychomane",
-    "denis_ufimtsev",
-    "dialbird"
+    "denis_ufimtsev"
   ],
   "license": "MIT",
   "preferences": [
