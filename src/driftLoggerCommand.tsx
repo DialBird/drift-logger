@@ -1,7 +1,17 @@
 import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, open, popToRoot } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { format, parse } from "date-fns";
-import { clearCache, getLastDriftLoggerEndTime, saveDriftLoggerEndTime } from "./api/cache/cache.service";
+import {
+  clearCache,
+  getLastDriftLoggerEndTime,
+  saveDriftLoggerEndTime,
+  getTaskGroups,
+  getSelectedTaskGroup,
+  saveSelectedTaskGroupId,
+  addTaskGroup,
+  type TaskGroup,
+} from "./api/cache/cache.service";
+import { v4 as uuidv4 } from "uuid";
 import { applyTemplates } from "./api/templating/templating.service";
 import { vaultPluginCheck } from "./api/vault/plugins/plugins.service";
 import AdvancedURIPluginNotInstalled from "./components/Notifications/AdvancedURIPluginNotInstalled";
@@ -34,6 +44,10 @@ const parseTimeString = (timeStr: string): Date => {
 export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   const { vaults, ready } = useObsidianVaults();
   const { text, minutes, startTime: customStartTime } = props.arguments;
+
+  // タスクグループ関連のstate
+  const [taskGroups, setTaskGroups] = useState<TaskGroup[]>(getTaskGroups());
+  const [selectedTaskGroup] = useState<TaskGroup | null>(getSelectedTaskGroup());
 
   // 特殊コマンド「pin」の処理
   if (text === "pin") {
@@ -87,14 +101,14 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   // ドリフトログ用のフォーマット関数
   // デイリーパス生成関数（同期版）
   const generateDailyPathSync = (): string => {
-    if (!notePath) {
+    if (!projectSettings.notePath) {
       return "";
     }
 
     const today = new Date();
 
     // date-fnsのformatを使用してテンプレート置換処理
-    const dailyPath = format(today, notePath);
+    const dailyPath = format(today, projectSettings.notePath);
 
     return dailyPath;
   };
@@ -108,13 +122,23 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
     return await applyTemplates(dailyPath);
   };
 
-  const formatDriftLogEntry = (startTime: string, endTime: string, content: string, minutes: string): string => {
-    return `- ${startTime}~${endTime} (${minutes}min): ${content}`;
+  const formatDriftLogEntry = (
+    startTime: string,
+    endTime: string,
+    content: string,
+    minutes: string,
+    taskGroupName?: string
+  ): string => {
+    const taskGroupPrefix = taskGroupName ? `【${taskGroupName}】` : "";
+    return `- ${startTime}~${endTime} (${minutes}min): ${taskGroupPrefix}${content}`;
   };
 
   const { appendTemplate, heading, notePath, vaultName, silent } = getPreferenceValues<appendTaskPreferences>();
   const [vaultsWithPlugin, vaultsWithoutPlugin] = vaultPluginCheck(vaults, "obsidian-advanced-uri");
   const [content, setContent] = useState<string | null>(null);
+
+  // 全プロジェクト共通の設定を使用
+  const projectSettings = { notePath, vaultName, heading };
 
   useEffect(() => {
     async function getContent() {
@@ -148,65 +172,137 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
     }
   }
 
-  if (!notePath) {
+  if (!projectSettings.notePath) {
     // Fail if selected vault doesn't have plugin
     return <NoPathProvided />;
   }
 
-  const selectedVault = vaultName && vaults.find((vault) => vault.name === vaultName);
-  // If there's a configured vault or only one vault, use that
-  if (selectedVault || vaultsWithPlugin.length === 1) {
-    const vaultToUse = selectedVault || vaultsWithPlugin[0];
-    const openObsidian = async () => {
-      const dailyPath = await generateDailyPath();
-      const target = getObsidianTarget({
-        type: ObsidianTargetType.AppendTask,
-        path: dailyPath,
-        vault: vaultToUse,
-        text: formatDriftLogEntry(startTimeString, endTimeString, content, calculatedMinutes),
-        heading: heading,
-        silent: silent,
-      });
-      open(target);
-      clearCache();
-      // 終了時刻を次回の開始時刻として保存（clearCacheの後で実行）
-      saveDriftLoggerEndTime(endTime);
-      popToRoot();
-      closeMainWindow();
-    };
+  // Vault設定をチェック - 設定されていない場合やプラグインがない場合のみVault選択画面を表示
+  const selectedVault = projectSettings.vaultName && vaults.find((vault) => vault.name === projectSettings.vaultName);
+  const needsVaultSelection = !selectedVault && vaultsWithPlugin.length > 1;
 
-    // Render a loading state while the user selects a vault
-    if (vaults.length > 1 && !selectedVault) {
-      return <List isLoading={true} />;
-    }
+  // Vault選択が必要な場合は従来のVault選択画面
+  if (needsVaultSelection) {
+    return (
+      <List isLoading={false}>
+        {vaultsWithPlugin.map((vault) => (
+          <List.Item
+            key={vault.key}
+            title={vault.name}
+            actions={
+              <ActionPanel>
+                <Action
+                  title="Drift Logger"
+                  onAction={async () => {
+                    // 選択したタスクグループを記憶
+                    if (selectedTaskGroup) {
+                      saveSelectedTaskGroupId(selectedTaskGroup.id);
+                    } else {
+                      saveSelectedTaskGroupId("");
+                    }
 
-    // Call the function to open Obsidian when ready
-    openObsidian();
+                    const dailyPath = await generateDailyPath();
+                    const target = getObsidianTarget({
+                      type: ObsidianTargetType.AppendTask,
+                      path: dailyPath,
+                      vault: vault,
+                      text: formatDriftLogEntry(
+                        startTimeString,
+                        endTimeString,
+                        content,
+                        calculatedMinutes,
+                        selectedTaskGroup?.name
+                      ),
+                      heading: projectSettings.heading,
+                      silent: silent,
+                    });
+                    open(target);
+                    clearCache();
+                    saveDriftLoggerEndTime(endTime);
+                    popToRoot();
+                    closeMainWindow();
+                  }}
+                />
+              </ActionPanel>
+            }
+          />
+        ))}
+      </List>
+    );
   }
 
-  // Otherwise, let the user select a vault
+  // Vault設定が完了している場合、TaskGroup選択画面を表示
+  const vaultToUse = selectedVault || vaultsWithPlugin[0];
+
+  const executeWithTaskGroup = async (taskGroup: TaskGroup | null) => {
+    // 選択したタスクグループを記憶
+    if (taskGroup) {
+      saveSelectedTaskGroupId(taskGroup.id);
+    } else {
+      saveSelectedTaskGroupId("");
+    }
+
+    const dailyPath = await generateDailyPath();
+    const target = getObsidianTarget({
+      type: ObsidianTargetType.AppendTask,
+      path: dailyPath,
+      vault: vaultToUse,
+      text: formatDriftLogEntry(startTimeString, endTimeString, content, calculatedMinutes, taskGroup?.name),
+      heading: projectSettings.heading,
+      silent: silent,
+    });
+    open(target);
+    clearCache();
+    saveDriftLoggerEndTime(endTime);
+    popToRoot();
+    closeMainWindow();
+  };
+
   return (
     <List isLoading={false}>
-      {vaultsWithPlugin.map((vault) => (
+      <List.Section title="タスクグループを選択">
         <List.Item
-          key={vault.key}
-          title={vault.name}
+          key="default"
+          title="デフォルト（タスクグループなし）"
           actions={
             <ActionPanel>
-              <Action.Open
-                title="Drift Logger"
-                target={getObsidianTarget({
-                  type: ObsidianTargetType.AppendTask,
-                  path: generateDailyPathSync(),
-                  vault: vault,
-                  text: formatDriftLogEntry(startTimeString, endTimeString, content, calculatedMinutes),
-                  heading: heading,
-                })}
+              <Action title="Drift Logger" onAction={() => executeWithTaskGroup(null)} />
+            </ActionPanel>
+          }
+        />
+        <List.Item
+          key="create_new"
+          title={`新しいタスクグループ「${text}」を作成`}
+          actions={
+            <ActionPanel>
+              <Action
+                title="作成して実行"
+                onAction={() => {
+                  const newTaskGroup: TaskGroup = {
+                    id: uuidv4(),
+                    name: text,
+                  };
+                  addTaskGroup(newTaskGroup);
+                  setTaskGroups(getTaskGroups());
+                  executeWithTaskGroup(newTaskGroup); // 新規作成したタスクグループで実行
+                }}
               />
             </ActionPanel>
           }
         />
-      ))}
+        {taskGroups.map((taskGroup) => (
+          <List.Item
+            key={taskGroup.id}
+            title={taskGroup.name}
+            accessories={[...(selectedTaskGroup?.id === taskGroup.id ? [{ icon: "✓", tooltip: "選択中" }] : [])]}
+            actions={
+              <ActionPanel>
+                <Action title="Drift Logger" onAction={() => executeWithTaskGroup(taskGroup)} />
+              </ActionPanel>
+            }
+          />
+        ))}
+      </List.Section>
     </List>
   );
 }

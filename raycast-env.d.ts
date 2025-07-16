@@ -29,6 +29,8 @@ declare namespace Preferences {
   /** Silent Mode - Don't open note when appending. */
   "silent": boolean
 }
+  /** Preferences accessible in the `manageTaskGroups` command */
+  export type ManageTaskGroups = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -41,5 +43,7 @@ declare namespace Arguments {
   /** min */
   "minutes": string
 }
+  /** Arguments passed to the `manageTaskGroups` command */
+  export type ManageTaskGroups = {}
 }
 
