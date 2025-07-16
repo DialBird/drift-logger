@@ -17,7 +17,6 @@ import { vaultPluginCheck } from "./api/vault/plugins/plugins.service";
 import AdvancedURIPluginNotInstalled from "./components/Notifications/AdvancedURIPluginNotInstalled";
 import { NoPathProvided } from "./components/Notifications/NoPathProvided";
 import { NoVaultFoundMessage } from "./components/Notifications/NoVaultFoundMessage";
-import { vaultsWithoutAdvancedURIToast } from "./components/Toasts";
 import { useObsidianVaults } from "./utils/hooks";
 import type { appendTaskPreferences } from "./utils/preferences";
 import { getObsidianTarget, ObsidianTargetType } from "./utils/utils";
@@ -134,7 +133,7 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
   };
 
   const { appendTemplate, heading, notePath, vaultName, silent } = getPreferenceValues<appendTaskPreferences>();
-  const [vaultsWithPlugin, vaultsWithoutPlugin] = vaultPluginCheck(vaults, "obsidian-advanced-uri");
+  const [vaultsWithPlugin] = vaultPluginCheck(vaults, "obsidian-advanced-uri");
   const [content, setContent] = useState<string | null>(null);
 
   // 全プロジェクト共通の設定を使用
@@ -155,10 +154,6 @@ export default function DriftLogger(props: { arguments: appendTaskArgs }) {
 
   if (vaults.length === 0) {
     return <NoVaultFoundMessage />;
-  }
-
-  if (vaultsWithoutPlugin.length > 0) {
-    vaultsWithoutAdvancedURIToast(vaultsWithoutPlugin);
   }
 
   if (vaultsWithPlugin.length === 0) {
